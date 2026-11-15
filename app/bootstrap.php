@@ -9,8 +9,16 @@ const SCHEMA_VERSION = 1;
 function cfg(?string $key = null, $default = null) {
     static $cfg = null;
     if ($cfg === null) {
-        $file = __DIR__ . '/config.php';
-        if (!is_file($file)) $file = __DIR__ . '/config.example.php';
+        // Pořadí: env P50_CONFIG → soukromá složka mimo web (Hostinger Git deploy přepisuje složku repa)
+        //         → app/config.php (lokálně / Docker) → ukázkový config
+        $candidates = array_filter([
+            getenv('P50_CONFIG') ?: null,
+            dirname(__DIR__, 3) . '/adam50-private/config.php', // ~/domains/<doména>/adam50-private/
+            __DIR__ . '/config.php',
+            __DIR__ . '/config.example.php',
+        ]);
+        $file = null;
+        foreach ($candidates as $c) { if (@is_file($c)) { $file = $c; break; } }
         $cfg = require $file;
     }
     return $key === null ? $cfg : ($cfg[$key] ?? $default);
