@@ -12,7 +12,7 @@
   <section class="card">
     <h2 class="h2">Hosté</h2>
     <p class="muted">Jeden řádek = jedna domácnost (pár sdílí jeden odkaz). Volitelně za středník vztah k oslavenci.<br>
-      <code>Petra a Honza Novákovi; spolužáci z gymplu</code></p>
+      <code>Petra a Honza; Novákovi, spolužáci z gymplu</code> – jména pište jen křestní (použijí se k oslovení a podpisu).</p>
     <form data-import class="import">
       <textarea class="input" rows="4" name="lines" placeholder="Jana a Pavel&#10;Martin; kolega z Accenture"></textarea>
       <button class="btn btn--gold" type="submit">Přidat hosty</button>
