@@ -31,7 +31,7 @@
     'Jaký byl Adam v práci, když to nikdo neviděl?',
     'Kdyby byl Adam film, jak by se jmenoval?',
   ];
-  const ERAS = [[1976, 1982, 'malý Adam'], [1983, 1990, 'školní léta'], [1991, 1994, 'puberta a 90. léta'], [1995, 2000, 'studia a první práce'],
+  const ERAS = [[1977, 1983, 'malý Adam'], [1983, 1990, 'školní léta'], [1991, 1994, 'puberta a 90. léta'], [1995, 2000, 'studia a první práce'],
     [2001, 2009, 'nultá léta'], [2010, 2019, 'desátá léta'], [2020, 2099, 'poslední roky']];
 
   /* ---------------- API (skutečné nebo demo) ---------------- */

@@ -7,8 +7,8 @@ return [
     // Kdo slaví
     'celebrant'      => 'Adam',
     'celebrant_vocative' => 'Adame',             // 5. pád pro finále: „Všechno nejlepší, Adame!“
-    'birth_year'     => 1976,
-    'party_date'     => '2026-12-12 18:00',      // Europe/Prague
+    'birth_year'     => 1977,
+    'party_date'     => '2027-01-16 18:00',      // Europe/Prague
     'party_place'    => 'Hostín',
     'site_title'     => 'Adamových 50',
 
@@ -19,10 +19,10 @@ return [
     'admin_key'      => 'ZMEN-MNE',
 
     // Uzávěrka příspěvků (po ní je sběr jen pro čtení). null = bez uzávěrky.
-    'submissions_close' => '2026-12-11 23:59',
+    'submissions_close' => '2027-01-15 23:59',
 
     // Kdy se hosté smí podívat na "Kino" (po oslavě jako dárek). Admin ho vidí vždy.
-    'kino_public_from'  => '2026-12-13 10:00',
+    'kino_public_from'  => '2027-01-17 10:00',
 
     // Smí hosté před oslavou vidět příspěvky ostatních? false = překvapení až na oslavě.
     'wall_visible_before_party' => false,
