@@ -6,7 +6,8 @@
 return [
     // Kdo slaví
     'celebrant'      => 'Adam',
-    'celebrant_vocative' => 'Adame',             // 5. pád pro finále: „Všechno nejlepší, Adame!“
+    'celebrant_vocative' => 'Adame',
+    'celebrant_accusative' => 'Adama',           // 4. pád: „Přání pro Adama“             // 5. pád pro finále: „Všechno nejlepší, Adame!“
     'birth_year'     => 1977,
     'party_date'     => '2027-01-16 18:00',      // Europe/Prague
     'party_place'    => 'Hostín',

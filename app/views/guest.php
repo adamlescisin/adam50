@@ -51,6 +51,7 @@ $assets = ($BASE ?? '') . '/assets'; ?>
           <textarea class="input" name="body" rows="6" maxlength="6000" placeholder="Pište, jako byste to vyprávěli u stolu…"></textarea>
           <div class="prompt">
             <button type="button" class="prompt__btn" data-action="prompt" title="Inspirace">✨ Došla slova?</button>
+            <span class="prompt__help">(Opakovaným stiskem tlačítka vám zkusím pomoci)</span>
             <span class="prompt__text" data-prompt></span>
           </div>
         </div>
@@ -68,25 +69,34 @@ $assets = ($BASE ?? '') . '/assets'; ?>
       </fieldset>
 
       <fieldset class="step">
-        <legend><span class="step__n">5</span> Hlasový vzkaz <span class="optional">nepovinné</span></legend>
-        <div class="rec" data-rec>
-          <button type="button" class="rec__btn" data-action="rec" aria-label="Nahrávat"><span></span></button>
-          <div class="rec__body">
-            <div class="rec__status" data-rec-status>Klepněte a mluvte – třeba jen 20 vteřin.</div>
-            <canvas class="rec__wave" data-rec-wave width="600" height="60" aria-hidden="true"></canvas>
-            <audio controls data-rec-audio hidden></audio>
-          </div>
-          <button type="button" class="btn btn--ghost btn--sm" data-action="rec-clear" hidden>Smazat</button>
+        <legend><span class="step__n">5</span> Přání pro <?= e(cfg('celebrant_accusative', cfg('celebrant') . 'a')) ?> <span class="optional">nepovinné</span></legend>
+        <div class="seg" role="tablist" aria-label="Forma přání">
+          <button type="button" role="tab" class="seg__btn is-on" data-wish-mode="voice" aria-selected="true">🎙️ Namluvit</button>
+          <button type="button" role="tab" class="seg__btn" data-wish-mode="text" aria-selected="false">✍️ Napsat</button>
         </div>
+        <div data-wish-panel="voice">
+          <div class="rec" data-rec>
+            <button type="button" class="rec__btn" data-action="rec" aria-label="Nahrávat"><span></span></button>
+            <div class="rec__body">
+              <div class="rec__status" data-rec-status>Klepněte a mluvte – třeba jen 20 vteřin.</div>
+              <canvas class="rec__wave" data-rec-wave width="600" height="60" aria-hidden="true"></canvas>
+              <audio controls data-rec-audio hidden></audio>
+            </div>
+            <button type="button" class="btn btn--ghost btn--sm" data-action="rec-clear" hidden>Smazat</button>
+          </div>
+        </div>
+        <div data-wish-panel="text" hidden>
+          <textarea class="input input--wish" name="wish_text" rows="4" maxlength="3000" placeholder="Co přejete <?= e(cfg('celebrant') . 'ovi') ?> do dalších let?"></textarea>
+        </div>
+        <label class="wish">
+          <input type="checkbox" name="wish_public" data-wish checked>
+          <span class="wish__ui"><strong>🥂 Tohle přání je veřejné a může být zveřejněno ve finální prezentaci</strong><small>Když políčko odškrtnete, přání uvidí jen <?= e(cfg('celebrant')) ?>.</small></span>
+        </label>
       </fieldset>
 
       <fieldset class="step">
-        <legend><span class="step__n">6</span> Štítky</legend>
+        <legend><span class="step__n">6</span> Štítky – označte téma (nebo témata), kterého se vaše vzpomínka týká</legend>
         <div class="chips chips--tags" data-tags></div>
-        <label class="wish">
-          <input type="checkbox" name="is_wish" data-wish>
-          <span class="wish__ui"><strong>🥂 Tohle je přání do dalších let</strong><small>Přání pustíme ve velkém finále.</small></span>
-        </label>
       </fieldset>
 
       <div class="submit">

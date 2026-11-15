@@ -51,7 +51,7 @@
     async del(id) { const r = await fetch(`${P50.base}/api/memories/${id}`, { method: 'DELETE', headers: { 'X-P50': '1' } }); if (!r.ok) throw new Error('Smazání selhalo'); },
   };
 
-  const S = { me: null, files: [], removeMedia: new Set(), audio: null, editing: null, promptIdx: Math.floor(Math.random() * PROMPTS.length) };
+  const S = { me: null, files: [], removeMedia: new Set(), audio: null, editing: null, wishMode: 'voice', promptIdx: Math.floor(Math.random() * PROMPTS.length) };
   const mediaUrl = (m, f) => (P50.demo ? f : `${S.me.media_base}/${m.id}/${f}`);
 
   /* ---------------- init ---------------- */
@@ -117,7 +117,8 @@
   /* ---------------- karty ---------------- */
   function memCard(m, own) {
     const photos = m.media.filter(x => x.kind === 'photo'), audio = m.media.find(x => x.kind === 'audio'), video = m.media.find(x => x.kind === 'video');
-    const card = h('article', { class: `mem${m.is_wish ? ' mem--wish' : ''}${m.status === 'hidden' ? ' mem--hidden' : ''}` });
+    const hasWish = !!(m.wish_text || audio);
+    const card = h('article', { class: `mem${hasWish ? ' mem--wish' : ''}${m.status === 'hidden' ? ' mem--hidden' : ''}` });
     if (photos.length) {
       const shown = photos.slice(0, photos.length >= 4 ? 4 : photos.length === 3 ? 2 : photos.length);
       const media = h('div', { class: 'mem__media', style: `--cols:${shown.length >= 2 ? 2 : 1}` },
@@ -127,14 +128,16 @@
     } else if (video) {
       card.append(h('div', { class: 'mem__media' }, h('video', { src: mediaUrl(m, video.file), controls: true, preload: 'metadata', playsinline: true })));
     } else {
-      const b = m.body || '';
+      const b = m.body || m.wish_text || '';
       card.append(h('div', { class: 'mem__quote', style: !m.title && b.length > 100 ? 'font-size:1.05rem' : null }, m.title || (b ? `„${b.length > 180 ? b.slice(0, 180).replace(/\s+\S*$/, '') + '…' : b}“` : '🎙️ Hlasový vzkaz')));
     }
     const body = h('div', { class: 'mem__body' },
       h('div', { class: 'mem__meta' }, m.year ? h('span', { class: 'mem__year' }, m.year) : null, m.tags.map(t => h('span', { class: 'mem__tag' }, t))),
       m.title && (photos.length || video) ? h('h3', { class: 'mem__title' }, m.title) : null,
       m.body && (photos.length || video || m.title) ? h('p', { class: 'mem__text' }, m.body) : null,
+      m.wish_text && (m.body || m.title || photos.length || video) ? h('p', { class: 'mem__wish' }, '🥂 ' + m.wish_text, own ? h('small', {}, m.wish_public ? 'veřejné přání' : `🔒 jen pro ${S.me.config.celebrant}a`) : null) : null,
       audio ? h('audio', { src: mediaUrl(m, audio.file), controls: true, preload: 'none' }) : null,
+      audio && own && !m.wish_public ? h('small', { class: 'hint' }, `🔒 hlasové přání jen pro ${S.me.config.celebrant}a`) : null,
       h('div', { class: 'mem__by' }, '— ' + m.authors.join(' a ')));
     card.append(body);
     if (own) card.append(h('div', { class: 'mem__actions' },
@@ -183,6 +186,7 @@
     drop.addEventListener('drop', e => addFiles(e.dataTransfer.files));
 
     bindRecorder();
+    document.querySelectorAll('[data-wish-mode]').forEach(b => b.addEventListener('click', () => setWishMode(b.dataset.wishMode)));
     form.addEventListener('submit', submit);
     $('[data-action=cancel-edit]').addEventListener('click', resetComposer);
 
@@ -191,6 +195,13 @@
       if (img) { const lb = $('[data-lightbox]'); $('img', lb).src = img.dataset.full; lb.showModal(); }
       if (e.target.closest('[data-action=lb-close]') || e.target.matches('[data-lightbox]')) $('[data-lightbox]').close();
     });
+  }
+
+  function setWishMode(mode) {
+    S.wishMode = mode;
+    $$('[data-wish-mode]').forEach(b => { const on = b.dataset.wishMode === mode; b.classList.toggle('is-on', on); b.setAttribute('aria-selected', on); });
+    $$('[data-wish-panel]').forEach(p => { p.hidden = p.dataset.wishPanel !== mode; });
+    if (mode === 'text') setTimeout(() => $('[name=wish_text]').focus(), 50);
   }
 
   function addFiles(list) {
@@ -241,16 +252,20 @@
     $$('[name="tags[]"]:checked', form).forEach(i => fd.append('tags[]', i.value));
     fd.append('title', form.title.value); fd.append('body', form.body.value);
     if (!$('[data-year-unknown]').checked) fd.append('year', $('[data-year]').value);
-    if ($('[data-wish]').checked) fd.append('is_wish', '1');
+    if ($('[data-wish]').checked) fd.append('wish_public', '1');
+    const wishText = S.wishMode === 'text' ? form.wish_text.value.trim() : '';
+    fd.append('wish_text', wishText);
+    // přání je buď hlasové, nebo psané – při psaném zahodíme případnou starou hlasovku
+    if (S.wishMode === 'text' && S.removeAudioId) S.removeMedia.add(S.removeAudioId);
     S.removeMedia.forEach(id => fd.append('remove_media[]', id));
     const hasExisting = S.editing && S.editing.media.some(x => !S.removeMedia.has(x.id));
-    if (!form.title.value.trim() && !form.body.value.trim() && !S.files.length && !S.audio && !hasExisting) {
-      err.textContent = 'Napište pár slov nebo přidejte fotku či hlasový vzkaz. 🙂'; return;
+    if (!form.title.value.trim() && !form.body.value.trim() && !wishText && !S.files.length && !(S.audio && S.wishMode === 'voice') && !hasExisting) {
+      err.textContent = 'Napište pár slov, přidejte fotku nebo přání. 🙂'; return;
     }
     btn.disabled = true; btn.textContent = 'Připravuji fotky…'; bar.hidden = false; $('i', bar).style.width = '0';
     try {
       for (const f of S.files) fd.append('files[]', await shrink(f.file));
-      if (S.audio) fd.append('audio', S.audio.blob, 'vzkaz.' + (S.audio.blob.type.includes('mp4') ? 'm4a' : 'webm'));
+      if (S.audio && S.wishMode === 'voice') fd.append('audio', S.audio.blob, 'vzkaz.' + (S.audio.blob.type.includes('mp4') ? 'm4a' : 'webm'));
       btn.textContent = 'Nahrávám…';
       const saved = await api.save(fd, S.editing?.id, p => { $('i', bar).style.width = `${Math.round(p * 100)}%`; });
       const idx = S.me.mine.findIndex(m => m.id === saved.id);
@@ -275,9 +290,11 @@
     form.title.value = m.title || ''; form.body.value = m.body || '';
     if (m.year) { $('[data-year]').value = m.year; $('[data-year-unknown]').checked = false; } else $('[data-year-unknown]').checked = true;
     $('[data-year]').dispatchEvent(new Event('input')); if (!m.year) { $('[data-year-unknown]').checked = true; $('[data-year-unknown]').dispatchEvent(new Event('change')); }
-    $('[data-wish]').checked = m.is_wish;
+    $('[data-wish]').checked = m.wish_public;
+    form.wish_text.value = m.wish_text || '';
     renderAuthors(m.authors); renderTags(m.tags); renderThumbs();
     const a = m.media.find(x => x.kind === 'audio');
+    setWishMode(m.wish_text && !a ? 'text' : 'voice');
     if (a) { const el = $('[data-rec-audio]'); el.src = mediaUrl(m, a.file); el.hidden = false; $('[data-rec-status]').textContent = 'Uložený vzkaz. Nová nahrávka ho nahradí.'; S.removeAudioId = a.id; }
     $('[data-bind=composerTitle]').textContent = 'Úprava vzpomínky';
     $('[data-action=cancel-edit]').hidden = false; $('[data-submit]').textContent = 'Uložit změny';
@@ -290,7 +307,7 @@
     S.files.forEach(f => URL.revokeObjectURL(f.url));
     S.files = []; S.removeMedia = new Set(); S.editing = null; S.removeAudioId = null; clearAudio();
     $('[data-year]').value = 1995; $('[data-year]').dispatchEvent(new Event('input'));
-    renderAuthors(); renderTags(); renderThumbs();
+    renderAuthors(); renderTags(); renderThumbs(); setWishMode('voice');
     $('[data-bind=composerTitle]').textContent = 'Nová vzpomínka';
     $('[data-action=cancel-edit]').hidden = true; $('[data-submit]').textContent = 'Uložit vzpomínku';
     $('#composer').classList.remove('is-editing'); $('[data-error]').textContent = '';

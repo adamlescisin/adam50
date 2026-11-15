@@ -70,7 +70,7 @@ window.P50 = {
       const a = fd.get('audio'); if (a) { const u = URL.createObjectURL(a); media.push({ id: n++, kind: 'audio', file: u, url: u }); }
       const m = Object.assign(old || { id: crypto.randomUUID(), created_at: new Date().toISOString(), household: { label: ME.household.label } }, {
         authors: fd.getAll('authors[]'), title: fd.get('title'), body: fd.get('body'), year: fd.get('year') ? +fd.get('year') : null,
-        tags: fd.getAll('tags[]'), is_wish: !!fd.get('is_wish'), status: 'visible', media });
+        tags: fd.getAll('tags[]'), wish_text: fd.get('wish_text') || null, wish_public: !!fd.get('wish_public'), status: 'visible', media });
       if (!old) { mine.push(m); SHOW.memories.push(m); }
       return m;
     },

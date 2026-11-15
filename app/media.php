@@ -103,7 +103,8 @@ function memory_to_array(array $m, bool $withHousehold = true): array {
         'title' => $m['title'], 'body' => $m['body'],
         'year' => $m['year'] !== null ? (int)$m['year'] : null,
         'tags' => json_decode($m['tags_json'], true),
-        'is_wish' => (bool)$m['is_wish'],
+        'wish_text' => $m['wish_text'] ?? null,
+        'wish_public' => (bool)$m['is_wish'],
         'status' => $m['status'],
         'created_at' => $m['created_at'], 'updated_at' => $m['updated_at'],
         'media' => $media,
@@ -132,6 +133,14 @@ function load_memory(string $id): ?array {
     return $st->fetch() ?: null;
 }
 
+/** Soukromé přání (text i hlasovku) vidí jen autoři a admin – z veřejných výpisů ho odstraníme. */
+function strip_private_wish(array $m): array {
+    if ($m['wish_public']) return $m;
+    $m['wish_text'] = null;
+    $m['media'] = array_values(array_filter($m['media'], fn($x) => $x['kind'] !== 'audio'));
+    return $m;
+}
+
 function all_memories(bool $includeHidden = false): array {
     $sql = 'SELECT m.*, h.label AS h_label, h.relation AS h_relation
             FROM memories m JOIN households h ON h.id = m.household_id'
@@ -141,7 +150,7 @@ function all_memories(bool $includeHidden = false): array {
 }
 
 /** Dataset pro Kino i export – jediný formát, se kterým pracuje prezentace. */
-function show_payload(string $mediaBase): array {
+function show_payload(string $mediaBase, bool $includePrivate = false): array {
     return [
         'schema' => 'p50.show/' . SCHEMA_VERSION,
         'generated_at' => now(),
@@ -152,7 +161,7 @@ function show_payload(string $mediaBase): array {
         'party_date' => cfg('party_date'),
         'music' => cfg('kino_music'),
         'media_base' => $mediaBase, // URL prefix; média: {media_base}/{memory_id}/{file}
-        'memories' => all_memories(false),
+        'memories' => $includePrivate ? all_memories(false) : array_map('strip_private_wish', all_memories(false)),
     ];
 }
 
@@ -204,7 +213,9 @@ function build_export_zip(string $target): string {
     $root = dirname(__DIR__);
     $zip = new ZipArchive();
     if ($zip->open($target, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) throw new RuntimeException('zip');
-    $show = show_payload('media');
+    $show = show_payload('media'); // jen veřejné – tohle se promítá
+    $zip->addFromString('private-wishes.json', json_encode(array_values(array_filter(all_memories(true), fn($m) => !$m['wish_public'] && ($m['wish_text'] || array_filter($m['media'], fn($x) => $x['kind'] === 'audio')))),
+        JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     $zip->addFromString('show.json', json_encode($show, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     $hh = db()->query('SELECT id, label, names_json, relation, last_seen FROM households ORDER BY label')->fetchAll();
     foreach ($hh as &$h) { $h['names'] = json_decode($h['names_json'], true); unset($h['names_json']); }

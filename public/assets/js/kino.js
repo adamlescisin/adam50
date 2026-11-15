@@ -30,9 +30,13 @@
     d.memories.forEach(m => m.media.forEach(x => { x.url = x.url || url(m, x.file); x.thumbUrl = x.thumbUrl || (x.thumb ? url(m, x.thumb) : x.url); }));
 
     const by = d.birth_year, mem = d.memories;
-    const dated = mem.filter(m => !m.is_wish && m.year).sort((a, b) => a.year - b.year || a.created_at.localeCompare(b.created_at));
-    const undated = shuffle(mem.filter(m => !m.is_wish && !m.year));
-    const wishes = shuffle(mem.filter(m => m.is_wish));
+    // vzpomínka = příběh/fotky/video; přání (text nebo hlas, jen veřejné) má vlastní slajd ve finále
+    const hasStory = m => !!(m.title || m.body || m.media.some(x => x.kind === 'photo' || x.kind === 'video'));
+    const hasWish = m => m.wish_public && !!(m.wish_text || m.media.some(x => x.kind === 'audio'));
+    const stories = mem.filter(hasStory);
+    const dated = stories.filter(m => m.year).sort((a, b) => a.year - b.year || a.created_at.localeCompare(b.created_at));
+    const undated = shuffle(stories.filter(m => !m.year));
+    const wishes = shuffle(mem.filter(hasWish));
     const S = [{ type: 'title' }];
     const groups = new Map();
     dated.forEach(m => { const dec = Math.floor(m.year / 10) * 10; groups.has(dec) || groups.set(dec, []); groups.get(dec).push(m); });
@@ -47,15 +51,15 @@
     }
     if (wishes.length) {
       S.push({ type: 'chapter', big: '50+', label: 'Do dalších let', meta: `${wishes.length} ${plural(wishes.length, 'přání', 'přání', 'přání')}` });
-      wishes.forEach(m => S.push({ type: 'memory', m, chapter: 'Přání' }));
+      wishes.forEach(m => S.push({ type: 'wish', m, chapter: 'Přání' }));
     }
     S.push({ type: 'finale' });
     P.slides = S;
 
     const authors = new Set(mem.flatMap(m => m.authors)), photos = mem.reduce((n, m) => n + m.media.filter(x => x.kind === 'photo').length, 0);
-    P.stats = { people: authors.size, photos, memories: mem.length };
+    P.stats = { people: authors.size, photos, memories: stories.length, wishes: wishes.length };
     $('[data-start-meta]').textContent = mem.length
-      ? `${mem.length} ${plural(mem.length, 'vzpomínka', 'vzpomínky', 'vzpomínek')} · ${photos} ${plural(photos, 'fotka', 'fotky', 'fotek')} · od ${authors.size} ${plural(authors.size, 'člověka', 'lidí', 'lidí')}`
+      ? `${stories.length} ${plural(stories.length, 'vzpomínka', 'vzpomínky', 'vzpomínek')} · ${wishes.length} přání · ${photos} ${plural(photos, 'fotka', 'fotky', 'fotek')} · od ${authors.size} ${plural(authors.size, 'člověka', 'lidí', 'lidí')}`
       : 'Zatím tu nejsou žádné vzpomínky.';
     $('[data-action=start]').disabled = !mem.length;
     buildProgressMarks(); buildOverview();
@@ -134,13 +138,13 @@
     memory({ m }) {
       const photos = m.media.filter(x => x.kind === 'photo');
       const video = m.media.find(x => x.kind === 'video');
-      const audio = m.media.find(x => x.kind === 'audio');
+      const audio = null; // hlasovka patří k přání → slajd 'wish'
       const text = (m.body || '').trim();
       const words = text.split(/\s+/).filter(Boolean).length;
       const readSec = Math.min(26, Math.max(6, 3 + words / 2.6)); // čte se nahlas a společně → pomaleji
       const by = m.authors.join(' a ');
       const captionParts = (excerpt) => [
-        m.year ? h('div', { class: 'caption__year' }, `${m.year} · ${d().celebrant}ovi ${m.year - d().birth_year}`) : (m.is_wish ? h('div', { class: 'caption__year' }, 'Přání') : null),
+        m.year ? h('div', { class: 'caption__year' }, `${m.year} · ${d().celebrant}ovi ${m.year - d().birth_year}`) : null,
         m.title ? h('h2', { class: 'caption__title' }, m.title) : null,
         excerpt ? h('p', { class: 'caption__text' }, excerpt) : null,
         h('div', { class: 'caption__by' }, by),
@@ -198,13 +202,27 @@
       }
 
       if (audio) attachAudio(r, audio);
-      if (P.guess) {
-        r.waitGuess = true;
-        r.el.classList.add('guess-hidden');
-        const badge = h('div', { class: 'guess-badge' }, 'Kdo to napsal? 🤔 (Enter)');
-        r.el.append(badge);
-        r.reveal = () => { if (r.revealed) return; r.revealed = true; r.el.classList.remove('guess-hidden'); badge.remove(); P.dur = Math.max(P.t + 4, P.dur); };
-      }
+      addGuess(r);
+      return r;
+    },
+
+    wish({ m }) {
+      const audio = m.media.find(x => x.kind === 'audio');
+      const text = (m.wish_text || '').trim();
+      const by = m.authors.join(' a ');
+      const body = h('div', { class: `s-text__body${text.length > 420 ? ' is-long' : ''}` });
+      const ws = text.split(/(\s+)/).map(w => (/\s+/.test(w) ? document.createTextNode(w) : h('span', { class: 'w' }, w)));
+      body.append(...ws);
+      const spans = ws.filter(w => w.nodeType === 1);
+      if (!text && audio) { body.textContent = '🎙️'; body.style.fontSize = '6rem'; }
+      const words = text.split(/\s+/).filter(Boolean).length;
+      const readSec = Math.min(24, Math.max(6, 3 + words / 2.6));
+      const el = h('section', { class: 'slide s-text s-wish' }, h('div', { class: 's-text__inner' },
+        h('span', { class: 's-text__mark', 'aria-hidden': 'true' }, '🥂'), body,
+        h('div', { class: 'caption' }, h('div', { class: 'caption__year' }, 'Přání do dalších let'), h('div', { class: 'caption__by' }, by))));
+      const r = { el, dur: readSec + 2, tick(t) { const n = Math.ceil(spans.length * Math.min(1, t / (readSec * .7))); for (let i = 0; i < n; i++) spans[i].classList.add('is-on'); } };
+      if (audio) attachAudio(r, audio);
+      addGuess(r);
       return r;
     },
 
@@ -217,11 +235,20 @@
         h('div', { class: 's-finale__mosaic', style: `--cols:${cols};grid-template-rows:repeat(${rows},1fr)` }, tiles),
         h('div', { class: 's-finale__inner' },
           h('div', { class: 's-finale__title' }, `Všechno nejlepší, ${d().celebrant_vocative || d().celebrant + 'e'}!`),
-          h('div', { class: 's-finale__sub' }, `${P.stats.people} lidí · ${P.stats.memories} vzpomínek · ${P.stats.photos} fotek · 50 let`)));
+          h('div', { class: 's-finale__sub' }, `${P.stats.people} lidí · ${P.stats.memories} vzpomínek · ${P.stats.wishes} přání · ${P.stats.photos} fotek · 50 let`)));
       return { el, dur: 30, enter() { fadeMusic(.8, 2000); confetti(); }, leave() { fadeMusic(.55, 1000); } };
     },
   };
   const d = () => P.data;
+
+  function addGuess(r) {
+    if (!P.guess) return;
+    r.waitGuess = true;
+    r.el.classList.add('guess-hidden');
+    const badge = h('div', { class: 'guess-badge' }, 'Kdo to napsal? 🤔 (Enter)');
+    r.el.append(badge);
+    r.reveal = () => { if (r.revealed) return; r.revealed = true; r.el.classList.remove('guess-hidden'); badge.remove(); P.dur = Math.max(P.t + 4, P.dur); };
+  }
 
   function attachAudio(r, a) {
     const au = new Audio(a.url); au.preload = 'auto';
@@ -273,7 +300,7 @@
     if (show) { toggle(true); o.querySelector('.is-current')?.scrollIntoView({ block: 'center' }); }
   }
   function randomMemory() {
-    const ids = P.slides.map((s, i) => (s.type === 'memory' ? i : -1)).filter(i => i >= 0 && i !== P.idx);
+    const ids = P.slides.map((s, i) => (s.type === 'memory' || s.type === 'wish' ? i : -1)).filter(i => i >= 0 && i !== P.idx);
     if (ids.length) go(ids[Math.floor(Math.random() * ids.length)]);
   }
 
@@ -286,7 +313,9 @@
     const g = $('[data-overview-grid]'); g.innerHTML = '';
     P.slides.forEach((s, i) => {
       let btn;
-      if (s.type === 'memory') {
+      if (s.type === 'wish') {
+        btn = h('button', { class: 'ov ov--chapter', style: 'font-size:1rem;padding:.8rem;text-align:center' }, `🥂 ${(s.m.wish_text || 'hlasové přání').slice(0, 60)}`, h('span', {}, s.m.authors.join(' a ')));
+      } else if (s.type === 'memory') {
         const ph = s.m.media.find(x => x.kind === 'photo');
         btn = h('button', { class: 'ov', style: ph ? `background-image:url("${ph.thumbUrl}")` : '' },
           h('span', {}, h('b', {}, s.m.title || (s.m.body || '').slice(0, 40) || '🎙️'), s.m.authors.join(' a ') + (s.m.year ? ` · ${s.m.year}` : '')));

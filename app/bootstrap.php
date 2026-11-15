@@ -4,7 +4,7 @@ declare(strict_types=1);
 date_default_timezone_set('Europe/Prague');
 mb_internal_encoding('UTF-8');
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 function cfg(?string $key = null, $default = null) {
     static $cfg = null;
@@ -51,7 +51,7 @@ function db(): PDO {
 function migrate(PDO $pdo): void {
     $v = (int)$pdo->query('PRAGMA user_version')->fetchColumn();
     if ($v >= SCHEMA_VERSION) return;
-    $pdo->exec(<<<SQL
+    if ($v < 1) $pdo->exec(<<<SQL
     CREATE TABLE IF NOT EXISTS households (
         id          INTEGER PRIMARY KEY,
         token       TEXT NOT NULL UNIQUE,      -- osobní odkaz /g/<token>
@@ -69,7 +69,7 @@ function migrate(PDO $pdo): void {
         body         TEXT,
         year         INTEGER,                  -- přibližný rok vzpomínky
         tags_json    TEXT NOT NULL DEFAULT '[]',
-        is_wish      INTEGER NOT NULL DEFAULT 0, -- přání do dalších let -> finále
+        is_wish      INTEGER NOT NULL DEFAULT 0, -- = přání je veřejné (smí do finále Kina)
         status       TEXT NOT NULL DEFAULT 'visible', -- visible | hidden
         created_at   TEXT NOT NULL,
         updated_at   TEXT NOT NULL
@@ -90,6 +90,10 @@ function migrate(PDO $pdo): void {
     CREATE INDEX IF NOT EXISTS ix_mem_household ON memories(household_id);
     CREATE INDEX IF NOT EXISTS ix_media_memory ON media(memory_id);
     SQL);
+    if ($v < 2) { // v2: textové přání (alternativa k hlasovému)
+        $cols = array_column($pdo->query('PRAGMA table_info(memories)')->fetchAll(), 'name');
+        if (!in_array('wish_text', $cols, true)) $pdo->exec('ALTER TABLE memories ADD COLUMN wish_text TEXT');
+    }
     $pdo->exec('PRAGMA user_version = ' . SCHEMA_VERSION);
 }
 

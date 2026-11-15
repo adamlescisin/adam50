@@ -90,8 +90,8 @@ $seed = 1;
 foreach ($memories as [$hh, $authors, $year, $title, $body, $tags, $nPhotos, $wish]) {
     $id = uuid4();
     $created = date('c', time() - mt_rand(1, 20) * 86400);
-    $pdo->prepare('INSERT INTO memories (id, household_id, authors_json, title, body, year, tags_json, is_wish, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)')
-        ->execute([$id, $hid[$hh], json_encode($authors, JSON_UNESCAPED_UNICODE), $title, $body, $year, json_encode($tags, JSON_UNESCAPED_UNICODE), $wish ? 1 : 0, $created, $created]);
+    $pdo->prepare('INSERT INTO memories (id, household_id, authors_json, title, body, year, tags_json, is_wish, wish_text, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
+        ->execute([$id, $hid[$hh], json_encode($authors, JSON_UNESCAPED_UNICODE), $wish ? $title : $title, $wish ? null : $body, $year, json_encode($tags, JSON_UNESCAPED_UNICODE), 1, $wish ? $body : null, $created, $created]);
     for ($i = 0; $i < $nPhotos; $i++) {
         $tmp = fake_photo($seed++, $year ?? 2020, $i === 1);
         $r = store_upload($id, ['tmp_name' => $tmp, 'error' => UPLOAD_ERR_OK, 'name' => 'x.jpg'], 'auto', $i);

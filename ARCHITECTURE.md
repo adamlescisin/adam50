@@ -81,7 +81,7 @@ tools/                  seed-demo.php, build-demo.php, export.php
 
 ```
 households(id, token UNIQUE, label "Petra a Honza", names_json ["Petra","Honza"], relation, created_at, last_seen)
-memories(id UUID, household_id, authors_json, title, body, year?, tags_json, is_wish, status visible|hidden, created_at, updated_at)
+memories(id UUID, household_id, authors_json, title, body, year?, tags_json, is_wish (= wish is public), wish_text?, status visible|hidden, created_at, updated_at)
 media(id, memory_id, kind photo|audio|video, file, thumb, mime, width, height, bytes, sort, created_at)
 ```
 
@@ -107,6 +107,8 @@ The **export ZIP** (`Admin → Export pro oslavu`, or `php tools/export.php`) co
 **Invite:** in Admin you paste households one per line (`Jana a Pavel; sousedé`). Each one gets a token, a link, a QR code and a pre-written Czech WhatsApp/e-mail invite you can copy.
 
 **Submit:** the guest picks who's writing, the year (slider showing "Adamovi 19 · studia"), writes a story (with a "Došla slova?" prompt generator), adds photos/videos, optionally records a voice note, adds tags or marks it as a wish. The phone shrinks photos to 2560 px JPEG, uploads with a progress bar, then shows confetti. The server checks the MIME type, re-encodes images (which also neutralises fake images and strips GPS), stores audio/video as-is, and writes `memory.json`.
+
+**Wishes:** section 5 of the form takes a wish for the celebrant, either recorded as voice or typed as text, plus a "public" checkbox (on by default). Public wishes get their own slides in the "Do dalších let" chapter of Kino. Private wishes are visible only to the authors and the admin: they are stripped from the wall, from `show.json` and from media URLs, and exported separately as `private-wishes.json`.
 
 **Surprise mode:** by default guests see only their own memories plus a sealed-envelope teaser and a live counter. The wall opens at party start (`wall_visible_before_party`).
 

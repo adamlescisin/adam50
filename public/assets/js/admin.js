@@ -17,7 +17,8 @@
     $('[data-kpis]').innerHTML = [
       [mem.length, 'vzpomínek'], [photos, 'fotek'], [audio + video, 'hlasových / videí'],
       [`${active}/${hh.length}`, 'domácností přispělo'], [`${visited}/${hh.length}`, 'otevřelo odkaz'],
-      [mem.filter(m => m.is_wish).length, 'přání do finále'],
+      [mem.filter(m => m.wish_public && (m.wish_text || m.media.some(x => x.kind === 'audio'))).length, 'veřejných přání'],
+      [mem.filter(m => !m.wish_public && (m.wish_text || m.media.some(x => x.kind === 'audio'))).length, 'soukromých přání 🔒'],
     ].map(([v, l]) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join('');
 
     $('[data-households] tbody').innerHTML = hh.map(x => `
@@ -38,12 +39,15 @@
     const url = (m, f) => `${S.media_base}/${m.id}/${f}`;
     $('[data-memories]').innerHTML = mem.map(m => {
       const ph = m.media.filter(x => x.kind === 'photo');
-      return `<article class="mem ${m.is_wish ? 'mem--wish' : ''} ${m.status === 'hidden' ? 'mem--hidden' : ''}">
+      const wish = m.wish_text || m.media.some(x => x.kind === 'audio');
+      return `<article class="mem ${wish ? 'mem--wish' : ''} ${m.status === 'hidden' ? 'mem--hidden' : ''}">
         ${ph.length ? `<div class="mem__media" style="--cols:${Math.min(2, ph.length)}">${ph.slice(0, 4).map(p => `<img loading="lazy" src="${url(m, p.thumb)}" alt="">`).join('')}${ph.length > 4 ? `<span class="more">+${ph.length - 4}</span>` : ''}</div>` : `<div class="mem__quote">${esc(m.title || (m.body || '').slice(0, 80) || '🎙️')}</div>`}
         <div class="mem__body">
           <div class="mem__meta">${m.year ? `<span class="mem__year">${m.year}</span>` : ''}${m.tags.map(t => `<span class="mem__tag">${esc(t)}</span>`).join('')}${m.media.some(x => x.kind === 'audio') ? '<span class="mem__tag">🎙️</span>' : ''}${m.media.some(x => x.kind === 'video') ? '<span class="mem__tag">🎬</span>' : ''}</div>
           ${m.title ? `<h3 class="mem__title">${esc(m.title)}</h3>` : ''}
           ${m.body ? `<p class="mem__text">${esc(m.body)}</p>` : ''}
+          ${m.wish_text ? `<p class="mem__wish">🥂 ${esc(m.wish_text)}<small>${m.wish_public ? 'veřejné' : '🔒 soukromé – jen pro tebe'}</small></p>` : ''}
+          ${m.media.some(x => x.kind === 'audio') ? `<audio controls preload="none" src="${url(m, m.media.find(x => x.kind === 'audio').file)}"></audio>${m.wish_public ? '' : '<small class="hint">🔒 soukromé hlasové přání</small>'}` : ''}
           <div class="mem__by">— ${esc(m.authors.join(' a '))} <span class="muted">(${esc(m.household.label)})</span></div>
         </div>
         <div class="mem__actions">

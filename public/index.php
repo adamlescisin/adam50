@@ -88,10 +88,13 @@ function route(string $method, string $path, string $BASE): void {
         if (!preg_match('/^[0-9a-f-]{36}$/', $mid) || !preg_match('/^[\w.-]+$/', $file)) { http_response_code(404); exit; }
         $m = load_memory($mid);
         if (!$m || !can_view_memory($m)) { http_response_code(404); exit; }
-        $st = db()->prepare('SELECT mime FROM media WHERE memory_id = ? AND (file = ? OR thumb = ?)');
+        $st = db()->prepare('SELECT mime, kind FROM media WHERE memory_id = ? AND (file = ? OR thumb = ?)');
         $st->execute([$mid, $file, $file]);
-        $mime = $st->fetchColumn();
-        if (!$mime) { http_response_code(404); exit; }
+        $row = $st->fetch();
+        if (!$row) { http_response_code(404); exit; }
+        $mime = $row['mime'];
+        // soukromé hlasové přání: jen autoři a admin
+        if ($row['kind'] === 'audio' && !$m['is_wish'] && !is_admin() && (int)(current_household()['id'] ?? 0) !== (int)$m['household_id']) { http_response_code(404); exit; }
         if (str_ends_with($file, '.thumb.jpg')) $mime = 'image/jpeg';
         serve_file(memory_dir($mid) . '/' . $file, $mime);
     }
@@ -133,7 +136,7 @@ function route(string $method, string $path, string $BASE): void {
             ],
             'mine' => $mine,
             'stats' => array_map('intval', $stats),
-            'wall' => $wallOpen ? array_values(array_filter(all_memories(false), fn($m) => $m['household']['id'] !== (int)$h['id'])) : null,
+            'wall' => $wallOpen ? array_values(array_map('strip_private_wish', array_filter(all_memories(false), fn($m) => $m['household']['id'] !== (int)$h['id']))) : null,
             'media_base' => "$BASE/m",
         ]);
     }
@@ -180,7 +183,8 @@ function save_memory(array $h, ?string $id): array {
     $year  = (int)($_POST['year'] ?? 0);
     $year  = ($year >= (int)cfg('birth_year') && $year <= (int)date('Y')) ? $year : null;
     $tags  = array_values(array_intersect(cfg('tags'), (array)($_POST['tags'] ?? [])));
-    $wish  = !empty($_POST['is_wish']) ? 1 : 0;
+    $wish  = !empty($_POST['wish_public']) ? 1 : 0;
+    $wishText = mb_substr(trim((string)($_POST['wish_text'] ?? '')), 0, 3000);
 
     $files = normalize_files($_FILES['files'] ?? null);
     $audio = isset($_FILES['audio']) && $_FILES['audio']['error'] === UPLOAD_ERR_OK ? $_FILES['audio'] : null;
@@ -191,21 +195,21 @@ function save_memory(array $h, ?string $id): array {
         $c = $pdo->prepare('SELECT COUNT(*) FROM media WHERE memory_id = ?'); $c->execute([$id]);
         $existing = (int)$c->fetchColumn() - count($removeIds);
     }
-    if ($body === '' && $title === '' && !$files && !$audio && $existing <= 0) fail('Napiš pár slov nebo přidej fotku či vzkaz. 🙂');
+    if ($body === '' && $title === '' && $wishText === '' && !$files && !$audio && $existing <= 0) fail('Napiš pár slov nebo přidej fotku či vzkaz. 🙂');
     if (count($files) + max(0, $existing) > (int)cfg('max_photos_per_memory') + 2) fail('Moc souborů najednou – rozděl je prosím do více vzpomínek.');
 
     $pdo->beginTransaction();
     try {
         if ($isNew) {
             $id = uuid4();
-            $pdo->prepare('INSERT INTO memories (id, household_id, authors_json, title, body, year, tags_json, is_wish, created_at, updated_at)
-                           VALUES (?,?,?,?,?,?,?,?,?,?)')
+            $pdo->prepare('INSERT INTO memories (id, household_id, authors_json, title, body, year, tags_json, is_wish, wish_text, created_at, updated_at)
+                           VALUES (?,?,?,?,?,?,?,?,?,?,?)')
                 ->execute([$id, $h['id'], json_encode($authors, JSON_UNESCAPED_UNICODE), $title, $body, $year,
-                           json_encode($tags, JSON_UNESCAPED_UNICODE), $wish, now(), now()]);
+                           json_encode($tags, JSON_UNESCAPED_UNICODE), $wish, $wishText ?: null, now(), now()]);
         } else {
-            $pdo->prepare('UPDATE memories SET authors_json=?, title=?, body=?, year=?, tags_json=?, is_wish=?, updated_at=? WHERE id=?')
+            $pdo->prepare('UPDATE memories SET authors_json=?, title=?, body=?, year=?, tags_json=?, is_wish=?, wish_text=?, updated_at=? WHERE id=?')
                 ->execute([json_encode($authors, JSON_UNESCAPED_UNICODE), $title, $body, $year,
-                           json_encode($tags, JSON_UNESCAPED_UNICODE), $wish, now(), $id]);
+                           json_encode($tags, JSON_UNESCAPED_UNICODE), $wish, $wishText ?: null, now(), $id]);
             foreach ($removeIds as $mid) {
                 $q = $pdo->prepare('SELECT file, thumb FROM media WHERE id = ? AND memory_id = ?'); $q->execute([$mid, $id]);
                 if ($row = $q->fetch()) {
