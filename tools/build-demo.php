@@ -52,6 +52,7 @@ $demoJs = 'const SHOW = ' . json_encode($show, JSON_UNESCAPED_UNICODE | JSON_UNE
 const mine = SHOW.memories.filter(m => m.household.label === ME.household.label);
 const others = SHOW.memories.filter(m => m.household.label !== ME.household.label);
 const photosCount = () => SHOW.memories.reduce((n, m) => n + m.media.filter(x => x.kind === 'photo').length, 0);
+try { window.confirm = () => true; } catch {}
 window.P50 = {
   base: '',
   demoShow: SHOW,
@@ -104,6 +105,7 @@ $html = preg_replace('#<link rel="preload"[^>]+>\s*#', '', $guest);
 $html = preg_replace_callback('#<link rel="stylesheet"[^>]+>#', fn() => "<style>\n$css\n</style>", $html);
 $html = preg_replace_callback('#<script>window\.P50 = .*?</script>\s*<script src="[^"]+app\.js[^"]*" defer></script>#s',
     fn() => "<script>\n$demoJs\n</script>\n<script>\n" . file_get_contents("$root/public/assets/js/app.js") . "\n</script>\n" . $switcher, $html);
+$html = str_replace(', viewport-fit=cover', '', $html);
 $html = str_replace('href="/odhlasit"', 'href="#" onclick="return false"', $html);
 
 @mkdir("$root/demo/dist", 0775, true);
