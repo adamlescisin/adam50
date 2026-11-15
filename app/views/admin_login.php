@@ -6,7 +6,8 @@
   <?php if (!empty($fail)): ?><p class="alert">Klíč nesedí.</p><?php endif; ?>
   <?php $src = cfg('__source'); $k = (string)cfg('admin_key'); ?>
   <?php if (str_contains((string)$src, 'example')): ?>
-    <p class="alert">Nenašel jsem soukromý config – běží ukázkové nastavení. Očekávám ho v <code>adam50-private/config.php</code> vedle složky <code>public_html</code>.</p>
+    <p class="alert">Nenašel jsem soukromý config – běží ukázkové nastavení. Očekávám ho přesně tady:<br><code><?= e(dirname(__DIR__, 3) . '/adam50-private/config.php') ?></code>
+    <?php $ob = ini_get('open_basedir'); if ($ob): ?><br><small class="muted">open_basedir: <?= e($ob) ?></small><?php endif; ?></p>
   <?php elseif ($k === '' || $k === 'ZMEN-MNE'): ?>
     <p class="alert">Config (<?= e($src) ?>) je načtený, ale admin klíč je prázdný nebo výchozí.</p>
   <?php elseif (!empty($fail)): ?>
