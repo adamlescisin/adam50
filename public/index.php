@@ -59,8 +59,17 @@ function route(string $method, string $path, string $BASE): void {
         echo render_view('kino', ['BASE' => $BASE, 'offline' => false, 'showUrl' => "$BASE/api/show"]);
         return;
     }
+    if ($method === 'POST' && $path === '/admin') {
+        $k = (string)cfg('admin_key'); start_session();
+        if ($k !== '' && $k !== 'ZMEN-MNE' && hash_equals($k, (string)($_POST['k'] ?? ''))) { session_regenerate_id(true); $_SESSION['admin'] = true; }
+        else { usleep(800000); $_SESSION['admin_fail'] = true; }
+        header('Location: ' . ($BASE ?: '') . '/admin'); exit;
+    }
     if ($method === 'GET' && $path === '/admin') {
-        if (!is_admin()) { http_response_code(404); echo 'Not found'; return; }
+        if (!is_admin()) { // přihlašovací formulář (klíč může obsahovat #, & apod., které v URL nefungují)
+            start_session(); $fail = !empty($_SESSION['admin_fail']); unset($_SESSION['admin_fail']);
+            echo render_view('admin_login', ['BASE' => $BASE, 'fail' => $fail]); return;
+        }
         if (isset($_GET['k'])) { header('Location: ' . ($BASE ?: '') . '/admin'); exit; } // klíč pryč z URL/historie
         echo render_view('admin', ['BASE' => $BASE]);
         return;
