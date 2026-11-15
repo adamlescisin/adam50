@@ -8,6 +8,7 @@ const SCHEMA_VERSION = 1;
 
 function cfg(?string $key = null, $default = null) {
     static $cfg = null;
+    if ($key === '__source') { cfg(); return $GLOBALS['P50_CFG_SOURCE'] ?? null; }
     if ($cfg === null) {
         // Pořadí: env P50_CONFIG → soukromá složka mimo web (Hostinger Git deploy přepisuje složku repa)
         //         → app/config.php (lokálně / Docker) → ukázkový config
@@ -19,6 +20,7 @@ function cfg(?string $key = null, $default = null) {
         ]);
         $file = null;
         foreach ($candidates as $c) { if (@is_file($c)) { $file = $c; break; } }
+        $GLOBALS['P50_CFG_SOURCE'] = basename(dirname($file)) . '/' . basename($file);
         $cfg = require $file;
     }
     return $key === null ? $cfg : ($cfg[$key] ?? $default);
