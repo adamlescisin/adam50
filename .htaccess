@@ -1,0 +1,11 @@
+# Pro nasazení CELÉHO repozitáře do webrootu (např. Hostinger Git deploy do složky subdomény).
+# Veřejná je jen složka public/, zbytek je zakázaný.
+Options -Indexes
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^(app|data|tools|docs|demo|\.git)(/|$) - [F,L]
+  RewriteRule ^(README|ARCHITECTURE)\.md$ - [F,L]
+  RewriteRule ^(Dockerfile|docker-compose\.yml|\.gitignore)$ - [F,L]
+  RewriteCond %{REQUEST_URI} !^/public/
+  RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>

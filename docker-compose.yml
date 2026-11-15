@@ -1,0 +1,10 @@
+# docker compose up -d   →  http://localhost:8050
+# Veřejně přes Cloudflare Tunnel:  cloudflared tunnel --url http://localhost:8050  (nebo pojmenovaný tunel na vlastní doménu)
+services:
+  web:
+    build: .
+    ports: ["8050:80"]
+    volumes:
+      - ./data:/app/data            # DB + média přežijí rebuild
+      - ./app/config.php:/app/app/config.php:ro
+    restart: unless-stopped

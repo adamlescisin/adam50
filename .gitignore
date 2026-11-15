@@ -1,0 +1,10 @@
+app/config.php
+data/*
+!data/.htaccess
+!data/.gitkeep
+public/assets/music/*
+!public/assets/music/.gitkeep
+*.zip
+.DS_Store
+node_modules/
+demo/dist/
