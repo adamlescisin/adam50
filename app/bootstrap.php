@@ -15,6 +15,9 @@ function cfg(?string $key = null, $default = null) {
         $candidates = array_filter([
             getenv('P50_CONFIG') ?: null,
             dirname(__DIR__, 3) . '/adam50-private/config.php', // ~/domains/<doména>/adam50-private/
+            // pro případ, že je webroot symlink (pak __DIR__ ukazuje jinam než DOCUMENT_ROOT)
+            !empty($_SERVER['DOCUMENT_ROOT']) ? dirname(rtrim($_SERVER['DOCUMENT_ROOT'], '/')) . '/adam50-private/config.php' : null,
+            (getenv('HOME') && !empty($_SERVER['HTTP_HOST'])) ? getenv('HOME') . '/domains/' . preg_replace('/[^a-z0-9.-]/i', '', $_SERVER['HTTP_HOST']) . '/adam50-private/config.php' : null,
             __DIR__ . '/config.php',
             __DIR__ . '/config.example.php',
         ]);
